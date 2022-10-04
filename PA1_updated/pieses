@@ -4,14 +4,6 @@
             int num_enrolled_course_A = ( *student_A ).get_num_enrolled_course();
             char** enrolled_courses_A = ( *student_A ).get_enrolled_courses();
             int index_original_course = search_course_index( student_A, original_course_name );
-            delete[] enrolled_courses_A[ index_original_course ];
-            enrolled_courses_A[ index_original_course ] = NULL;
-            for ( int i = index_original_course; i < num_enrolled_course_A-1; i++ )
-            {
-                enrolled_courses_A[i] = enrolled_courses_A[i+1];
-            }
-            enrolled_courses_A[ num_enrolled_course_A-1 ] = new char[ strlen( target_course_name )+1 ];
-            strcpy( enrolled_courses_A[ num_enrolled_course_A-1 ], target_course_name );
 
             // update original course data
             int size_original_A = ( *original_course_A ).get_size();
