@@ -33,7 +33,8 @@ int search_course_index(const Student* const student, const char* const course_n
             return i;
         }
         else
-        {}
+        {
+        }
     }
 }
 
@@ -188,8 +189,13 @@ bool System::swap(const int student_id, const char* const original_course_name, 
         if ( size_target_A + 1 <= capacity_target_A )   // there are seats available in the target course
         {
             // requires one add operation and one drop operation
+            // drop the original course
+            drop( student_id, original_course_name );
+
+            int current_credit_A_drop = (*student_A).get_curr_credit();
+
             // add operation ( we should avoid using add )
-            ( *student_A ).set_curr_credit( current_credit_A + credit_target_course_A );
+            ( *student_A ).set_curr_credit( current_credit_A_drop + credit_target_course_A );
 
             int num_enrolled_course_A = ( *student_A ).get_num_enrolled_course();
             // how to update the enrolled_course?
@@ -203,15 +209,12 @@ bool System::swap(const int student_id, const char* const original_course_name, 
             ( *target_course_A ).set_size( size_target_A + 1 );
             int* enrolled_students_A = ( *target_course_A ).get_students_enrolled();
             enrolled_students_A[ size_target_A ] = student_id; 
-
-            // drop the original course
-            drop( student_id, original_course_name );
         }
 
         else // no seats available, student is added to the waitlist
         {
             // update student_A data
-            ( *student_A ).set_pending_credit( pending_credit_A + credit_change );
+            ( *student_A ).set_pending_credit( pending_credit_A + final_change );
             Swap_List* swap_list_A = ( *student_A ).get_swap_list();
             Swap* swap_head_A = new Swap( original_course_name, target_course_name, (*swap_list_A).get_head() );
             ( *swap_list_A ).set_head( swap_head_A );
@@ -268,22 +271,111 @@ void System::drop(const int student_id, const char* const course_name) {
     int size_A = ( *course_A ).get_size();
     int index_student = search_student_id( student_id, course_A );
     int* enrolled_student = ( *course_A ).get_students_enrolled();
-    enrolled_student[index_student] = enrolled_student[size_A-1];
-    enrolled_student[ size_A-1 ] = 0;
+
 
     // check if there are any students on the waitlist
     Wait_List* waitlist_A = ( *course_A ).get_wait_list();
-    bool waitlist_empty = ( (*waitlist_A).get_head() == NULL );
+    Student_ListNode* head_A = (*waitlist_A).get_head();
+    bool waitlist_empty = ( head_A == NULL );
     (*course_A).set_size( size_A-1 );
 
     if ( waitlist_empty )
     {
+        enrolled_student[index_student] = enrolled_student[size_A-1];
+        enrolled_student[ size_A-1 ] = 0;
         return;
     }
 
     else
     {
+        int index_student = search_student_id( student_id, course_A );
+        int* enrolled_student = ( *course_A ).get_students_enrolled();
+        // first we update the target course
+        int student_id_B = head_A->student_id;
+        enrolled_student[index_student] = student_id_B;
+        int capacity_A = (*course_A).get_capacity();
+        ( *course_A ).set_size( capacity_A );
+        (*waitlist_A).set_head( head_A->next );
+        delete head_A;
+        head_A = NULL;
+
         // to be finished since a drop could trigger another add/swap
+        // which determines how we update the data of student
+
+        
+        Student* student_B = (*(get_student_database())).get_student_by_id(student_id_B);
+        Swap_List* swap_list_B = ( *student_B ).get_swap_list();
+        bool is_swap = false;
+
+        Swap* node_B = (*swap_list_B).get_head();
+        Swap* prev_B = NULL;
+        for ( Swap* head_B = (*swap_list_B).get_head(); head_B != NULL; head_B = head_B->next )
+        {
+            is_swap = is_swap || ( strcmp( node_B->target_course_name, course_name ) == 0 );
+            if ( is_swap )
+            { break; }
+            prev_B = node_B;
+            node_B = node_B->next;
+        }
+
+        if( is_swap )  // case that comes from a swap operation
+        {
+            Course* target_course_B = (get_course_database())->get_course_by_name( node_B->target_course_name );
+            Course* original_course_B = (get_course_database())->get_course_by_name( node_B->original_course_name );
+            int target_course_B_credit = ( *target_course_B ).get_num_credit();
+            int oringinal_course_B_credit = ( *original_course_B ).get_num_credit();
+            int credit_change = target_course_B_credit - oringinal_course_B_credit;
+            int final_change = ( credit_change > 0 ) ?  credit_change : 0;
+            // first drop
+            drop( student_id_B, node_B->original_course_name );
+            // drop ends
+
+            // add starts
+            int current_credit_B = (*student_B).get_curr_credit();
+            int pending_credit_B = (*student_B).get_pending_credit();
+            int num_enrolled_course_B = ( *student_B ).get_num_enrolled_course();
+            char** enrolled_courses_B = ( *student_B ).get_enrolled_courses();
+
+            //set enrolled courses
+            enrolled_courses_B[ num_enrolled_course_B ] = new char[ strlen( course_name )+1 ];
+            strcpy( enrolled_courses_B[ num_enrolled_course_B ], course_name );
+            ( *student_B ).set_num_enrolled_course( num_enrolled_course_B + 1 );
+            // set credit
+            (*student_B).set_curr_credit( current_credit_B + credit_course_A );
+            (*student_B).set_pending_credit( pending_credit_B - final_change);
+            // add operation ends
+
+            // swapping finish, update the swap_list
+            if( prev_B == NULL )
+            {
+                delete node_B;
+                node_B = NULL;
+                (*swap_list_B).set_head( NULL );
+            }
+            else
+            {
+                prev_B->next = node_B->next;
+                delete node_B;
+                node_B = NULL;
+            }
+
+        }
+
+        else  // case that comes from a add operation
+        {
+            int current_credit_B = (*student_B).get_curr_credit();
+            int pending_credit_B = (*student_B).get_pending_credit();
+            int num_enrolled_course_B = ( *student_B ).get_num_enrolled_course();
+            char** enrolled_courses_B = ( *student_B ).get_enrolled_courses();
+
+            enrolled_courses_B[ num_enrolled_course_B ] = new char[ strlen( course_name )+1 ];
+            strcpy( enrolled_courses_B[ num_enrolled_course_B ], course_name );
+            ( *student_B ).set_num_enrolled_course( num_enrolled_course_B + 1 );
+
+            (*student_B).set_curr_credit( current_credit_B + credit_course_A );
+            (*student_B).set_pending_credit( pending_credit_B - credit_course_A );
+
+        }
         
     }
     
