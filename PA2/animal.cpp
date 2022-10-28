@@ -14,10 +14,6 @@
  * Otherwise, if current cell contains an Animal, delete the passed animal and return false.
 */
 bool Animal::putAnimal(Animal* animal, Grid* nextGrid, const int x, const int y) const {
-    bool not_this_animal;
-    not_this_animal = ( (*nextGrid).getCell(x, y) != animal && (*nextGrid).getCell(x, y) != NULL ) && 
-    ( (*( (*nextGrid).getCell(x, y) ) ).toChar() == 'W' || 
-    ( *( (*nextGrid).getCell(x, y) ) ).toChar() == 'S' );
 
     bool out_of_bound = (*nextGrid).outOfBounds(x, y);
 
