@@ -72,7 +72,7 @@ probe_mode_{ probe_mode }
 }
 
 HashTable::~HashTable() {  // Task 1
-  delete table_;
+  delete [] table_;
 }
 
 bool HashTable::add(const std::string &name, int score) {  // Task 2 & 5
